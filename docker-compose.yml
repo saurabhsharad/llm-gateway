@@ -1,0 +1,80 @@
+# LLM Gateway — three-service local stack: postgres, backend, frontend.
+#
+#   docker compose up --build
+#
+# Browser -> http://localhost:3000  (frontend, nginx)
+# Browser -> http://localhost:8000  (backend gateway, FastAPI)
+# backend -> postgres:5432          (in-network, via service name)
+#
+# No host Python/Node/PostgreSQL required.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      # Local-dev DB credentials (overridable via a root .env). These are NOT
+      # provider secrets; real deployments supply their own values.
+      POSTGRES_USER: ${POSTGRES_USER:-gateway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gateway}
+      POSTGRES_DB: ${POSTGRES_DB:-gateway}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gateway} -d ${POSTGRES_DB:-gateway}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gateway-net
+
+  backend:
+    build: ./backend
+    # Provider keys + GATEWAY_API_KEYS come from the gitignored backend/.env.
+    env_file:
+      - ./backend/.env
+    environment:
+      # Override DATABASE_URL to reach the postgres SERVICE (not localhost).
+      # Takes precedence over any DATABASE_URL in backend/.env.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-gateway}:${POSTGRES_PASSWORD:-gateway}@postgres:5432/${POSTGRES_DB:-gateway}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - gateway-net
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Build-time: the browser calls the backend via the published host port.
+        # Must be host-reachable, NOT http://backend:8000.
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:80"  # host 3000 is already in the backend CORS allowlist
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      # Use 127.0.0.1 (not localhost): busybox wget may resolve localhost to IPv6
+      # ::1, but nginx listens on IPv4, which would wrongly report unhealthy.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gateway-net
+
+volumes:
+  pgdata:
+
+networks:
+  gateway-net:
+    driver: bridge

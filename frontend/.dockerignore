@@ -1,0 +1,20 @@
+# Keep the build context small and secret-free.
+node_modules/
+dist/
+.vite/
+
+# Env: VITE_API_BASE_URL is passed as a build ARG, not via .env files.
+.env
+.env.*
+!.env.example
+
+# VCS / editor / OS
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+
+# Docker files themselves
+Dockerfile
+.dockerignore

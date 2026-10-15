@@ -1,0 +1,24 @@
+# Never ship secrets or local-only cruft into the build context / image.
+.env
+.env.*
+!.env.example
+
+# Python local artifacts
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# VCS / editor / OS
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store
+
+# Docker files themselves (not needed inside the image)
+Dockerfile
+.dockerignore

@@ -1,0 +1,28 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# --- Environment / secrets ---
+.env
+.env.local
+*.env
+!.env.example
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.vite/
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
+
+# --- Test / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
